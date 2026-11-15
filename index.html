@@ -2,10 +2,10 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>جدولي — جداول 2026/2027</title>
-    <meta name="description" content="جداول محاضرات الفرقة الأولى والثانية في الأكاديمية الحديثة بالمعادي للعام الدراسي 2026/2027." />
-    <meta name="theme-color" content="#0c0a09" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>جدولي — جدول محاضراتك في مكان واحد</title>
+    <meta name="description" content="جداول محاضرات الفرقة الأولى والثانية في الأكاديمية الحديثة بالمعادي للعام الدراسي 2026/2027: يومك لحظة بلحظة، إشعارات قبل المحاضرة، وامتحاناتك في مكان واحد." />
+    <meta name="theme-color" content="#0b0f19" />
     <meta name="application-name" content="جدولي" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,51 +15,107 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <script src="js/theme.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <div id="splash" role="status" aria-label="جاري فتح جدولي">
-      <div class="splash-stage">
-        <img src="jadwali-logo.jpg" alt="" />
-        <p class="splash-name">جدولي</p>
-        <p class="splash-kicker">الأكاديمية الحديثة بالمعادي</p>
-        <div class="splash-track"><span id="splash-bar"></span></div>
-      </div>
-    </div>
-    <header>
-      <a class="brand" href="#/" data-go="setup">
-        <img src="jadwali-logo.jpg" alt="" />
-        <span><strong>جدولي</strong><small id="site-term">الترم الأول</small></span>
-      </a>
-      <button type="button" id="menu-open" aria-label="القائمة">☰</button>
-    </header>
-    <div id="sync-note" class="sync-note" role="status" hidden></div>
-    <main id="view"><noscript><p class="lead">جدولي محتاج تشغيل جافا سكربت عشان يعرض الجدول.</p></noscript></main>
-    <footer>
-      <p>جدولي · العام الدراسي <span dir="ltr" id="academic-year">2026/2027</span> · آخر مراجعة <span id="last-review">16 أكتوبر 2026</span></p>
-      <a href="#/about" data-go="about">من نحن</a>
-    </footer>
-    <nav id="tabbar" aria-label="التنقل الرئيسي" hidden></nav>
+    <a class="skip-link" href="#view">انتقل للمحتوى</a>
+
+    <!-- الشريط الجانبي: ثابت على الديسكتوب، ودرج منزلق على الموبايل -->
     <div id="drawer" hidden>
-      <button type="button" class="backdrop" id="menu-close" aria-label="إغلاق"></button>
-      <aside>
+      <button type="button" class="backdrop" id="menu-close" aria-label="إغلاق القائمة"></button>
+      <aside class="sidebar" aria-label="القائمة الجانبية">
         <div class="drawer-head">
-          <div class="drawer-brand">
-            <img src="jadwali-logo.jpg" alt="" />
-            <span><strong>جدولي</strong><small>الأكاديمية الحديثة بالمعادي</small></span>
-          </div>
-          <button type="button" id="menu-x" aria-label="إغلاق القائمة">×</button>
+          <a class="brand drawer-brand" href="#/" data-go="setup">
+            <img src="jadwali-logo.jpg" alt="" width="40" height="40" />
+            <span><strong>جدولي</strong><small id="site-term">الترم الأول</small></span>
+          </a>
+          <button type="button" class="icon-btn" id="rail-toggle" aria-label="طيّ القائمة الجانبية" title="طيّ القائمة">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M15 4.5v15"/></svg>
+          </button>
+          <button type="button" class="icon-btn" id="menu-x" aria-label="إغلاق القائمة">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
         </div>
         <p id="drawer-class" class="drawer-class" hidden></p>
-        <nav id="drawer-nav"></nav>
+        <nav id="drawer-nav" aria-label="التنقل"><div class="nav-sk" aria-hidden="true"><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></nav>
       </aside>
     </div>
+
+    <div class="app">
+      <header class="topbar">
+        <a class="brand top-brand" href="#/" data-go="setup">
+          <img src="jadwali-logo.jpg" alt="" width="36" height="36" />
+          <strong>جدولي</strong>
+        </a>
+        <div class="top-title" id="page-title" aria-live="polite"></div>
+        <nav class="guest-nav" aria-label="روابط سريعة">
+          <a href="#/sections" data-go="sections">الشعب</a>
+          <a href="#/about" data-go="about">من نحن</a>
+        </nav>
+        <div class="top-search" id="top-search-wrap" role="search">
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+            <input class="input" id="top-search" type="search" autocomplete="off" placeholder="ابحث برقم الفصل، المادة، الدكتور أو القاعة" aria-label="بحث في الجداول" />
+          </label>
+          <div class="search-pop" id="top-hits" hidden></div>
+        </div>
+        <div class="top-actions">
+          <span data-theme-slot=""></span>
+          <a class="btn sm guest-cta" href="#/start" data-go="start">اختار فصلك</a>
+          <button type="button" class="icon-btn" id="menu-open" aria-label="القائمة">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="sync-note" class="sync-note" role="status" hidden></div>
+
+      <main id="view" tabindex="-1">
+        <!-- هيكل التحميل: بيتشال أول ما البيانات تجهز -->
+        <div class="boot-sk boot-sk-app" aria-hidden="true">
+          <div class="between"><div><span class="sk" style="width:6rem;height:14px"></span><span class="sk" style="width:12rem;height:30px;margin-top:10px"></span></div><span class="sk" style="width:7rem;height:40px;border-radius:12px"></span></div>
+          <div class="kpis"><span class="sk card-sk"></span><span class="sk card-sk"></span><span class="sk card-sk"></span><span class="sk card-sk"></span></div>
+          <div class="dash">
+            <div class="dash-main"><span class="sk card-sk" style="height:184px"></span><span class="sk card-sk" style="height:76px"></span><span class="sk card-sk" style="height:108px"></span><span class="sk card-sk" style="height:108px"></span><span class="sk card-sk" style="height:108px"></span></div>
+            <div class="dash-side"><span class="sk card-sk" style="height:168px"></span><span class="sk card-sk" style="height:132px"></span></div>
+          </div>
+        </div>
+        <div class="boot-sk boot-sk-guest" aria-hidden="true">
+          <span class="sk" style="width:11rem;height:28px;border-radius:999px"></span>
+          <span class="sk" style="width:min(30rem,90%);height:56px;margin-top:20px"></span>
+          <span class="sk" style="width:min(22rem,70%);height:56px;margin-top:12px"></span>
+          <span class="sk" style="width:min(34rem,100%);height:20px;margin-top:24px"></span>
+          <span class="sk" style="width:min(26rem,80%);height:20px;margin-top:10px"></span>
+          <div class="row" style="margin-top:28px;justify-content:center"><span class="sk" style="width:9.5rem;height:52px;border-radius:14px"></span><span class="sk" style="width:9.5rem;height:52px;border-radius:14px"></span></div>
+        </div>
+        <noscript><p class="lead">جدولي محتاج تشغيل جافا سكربت عشان يعرض الجدول.</p></noscript>
+      </main>
+
+      <footer class="site-foot">
+        <p>جدولي · العام الدراسي <span dir="ltr" id="academic-year">2026/2027</span> · آخر مراجعة <span id="last-review">16 أكتوبر 2026</span></p>
+        <a href="#/about" data-go="about">من نحن</a>
+      </footer>
+    </div>
+
+    <nav id="tabbar" aria-label="التنقل الرئيسي" hidden></nav>
+    <div id="toasts" role="status" aria-live="polite"></div>
+
     <script src="js/supabase-config.js"></script>
     <script src="js/data.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app/core.js"></script>
+    <script src="js/app/views.js"></script>
+    <script src="js/app/assistant.js"></script>
+    <script src="js/app/share.js"></script>
+    <script src="js/app/push.js"></script>
+    <script src="js/app/sync.js"></script>
+    <script src="js/app/events.js"></script>
+    <script src="js/app/boot.js"></script>
     <script type="module" src="js/firebase.js"></script>
   </body>
 </html>
