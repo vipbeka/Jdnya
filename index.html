@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>جدولي — جداول 2026/2027</title>
+    <meta name="description" content="جداول محاضرات الفرقة الأولى والثانية في الأكاديمية الحديثة بالمعادي للعام الدراسي 2026/2027." />
+    <meta name="theme-color" content="#0c0a09" />
+    <meta name="application-name" content="جدولي" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="جدولي" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" href="favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div id="splash" role="status" aria-label="جاري فتح جدولي">
+      <div class="splash-stage">
+        <img src="jadwali-logo.jpg" alt="" />
+        <p class="splash-name">جدولي</p>
+        <p class="splash-kicker">الأكاديمية الحديثة بالمعادي</p>
+        <div class="splash-track"><span id="splash-bar"></span></div>
+      </div>
+    </div>
+    <header>
+      <a class="brand" href="#/" data-go="setup">
+        <img src="jadwali-logo.jpg" alt="" />
+        <span><strong>جدولي</strong><small id="site-term">الترم الأول</small></span>
+      </a>
+      <button type="button" id="menu-open" aria-label="القائمة">☰</button>
+    </header>
+    <div id="sync-note" class="sync-note" role="status" hidden></div>
+    <main id="view"><noscript><p class="lead">جدولي محتاج تشغيل جافا سكربت عشان يعرض الجدول.</p></noscript></main>
+    <footer>
+      <p>جدولي · العام الدراسي <span dir="ltr" id="academic-year">2026/2027</span> · آخر مراجعة <span id="last-review">16 أكتوبر 2026</span></p>
+      <a href="#/about" data-go="about">من نحن</a>
+    </footer>
+    <nav id="tabbar" aria-label="التنقل الرئيسي" hidden></nav>
+    <div id="drawer" hidden>
+      <button type="button" class="backdrop" id="menu-close" aria-label="إغلاق"></button>
+      <aside>
+        <div class="drawer-head">
+          <div class="drawer-brand">
+            <img src="jadwali-logo.jpg" alt="" />
+            <span><strong>جدولي</strong><small>الأكاديمية الحديثة بالمعادي</small></span>
+          </div>
+          <button type="button" id="menu-x" aria-label="إغلاق القائمة">×</button>
+        </div>
+        <p id="drawer-class" class="drawer-class" hidden></p>
+        <nav id="drawer-nav"></nav>
+      </aside>
+    </div>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+    <script type="module" src="js/firebase.js"></script>
+  </body>
+</html>
