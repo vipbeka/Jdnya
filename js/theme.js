@@ -15,7 +15,8 @@
   // لو الطالب حافظ فصله، نجهّز هيكل التطبيق من أول لحظة عشان الصفحة ما تتنططش.
   var shell = "guest";
   try { if (localStorage.getItem("jadwali-my-class")) shell = "app"; } catch (error) { /* التخزين مقفول */ }
-  if (!root.hasAttribute("data-shell")) root.setAttribute("data-shell", shell);
+  var self = document.currentScript;
+  if (!(self && self.getAttribute("data-shell")) && !root.hasAttribute("data-shell")) root.setAttribute("data-shell", shell);
   try { if (localStorage.getItem("jadwali-rail") === "1") root.setAttribute("data-rail", "1"); } catch (error) { /* التخزين مقفول */ }
   window.JadwaliTheme = {
     get: function () { return root.getAttribute("data-theme") || "dark"; },

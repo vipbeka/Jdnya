@@ -359,7 +359,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .toast.error .toast-ico { background: var(--danger-soft); color: var(--danger); }
 .toast.warn .toast-ico { background: var(--warn-soft); color: var(--warn); }
 .toast-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.toast-x { display: grid; place-items: center; width: 44px; height: 44px; margin: -8px -10px -8px 0; margin-inline: 0 -10px; flex: none; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--faint); }
+.toast-x { display: grid; place-items: center; width: 44px; height: 44px; margin-block: -8px; margin-inline: 0 -10px; flex: none; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--faint); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } }
 @media (min-width: 1024px) {
   #toasts { align-items: flex-start; inset-inline: auto var(--s-5); bottom: var(--s-5); padding: 0; width: 26rem; }

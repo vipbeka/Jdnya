@@ -36,9 +36,21 @@ if (reason && REASONS[reason]) {
   history.replaceState(null, "", location.pathname);
 }
 
-document.getElementById("toggle-pw").addEventListener("click", () => {
-  password.type = password.type === "password" ? "text" : "password";
+document.getElementById("toggle-pw").addEventListener("click", (event) => {
+  const showing = password.type === "password";
+  password.type = showing ? "text" : "password";
+  event.currentTarget.setAttribute("aria-pressed", String(showing));
+  event.currentTarget.setAttribute("aria-label", showing ? "إخفاء كلمة السر" : "إظهار كلمة السر");
 });
+
+// تحقق لحظي: الحقل بيتعلّم بالأحمر أول ما المستخدم يسيبه وهو غلط، وبيرجع طبيعي أول ما يتصلّح
+function checkField(input, bad) {
+  input.closest(".field").classList.toggle("invalid", bad);
+  input.setAttribute("aria-invalid", String(bad));
+}
+email.addEventListener("blur", () => checkField(email, !!email.value && !email.checkValidity()));
+email.addEventListener("input", () => { if (email.checkValidity()) checkField(email, false); });
+password.addEventListener("input", () => checkField(password, false));
 
 // لو في جلسة محفوظة، روح للوحة التحكم على طول
 if (!reason) {
@@ -49,11 +61,15 @@ if (!reason) {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  checkField(email, !email.value.trim() || !email.checkValidity());
+  checkField(password, !password.value);
   if (!email.value.trim() || !password.value) {
     show("اكتب البريد وكلمة السر.");
+    (email.value.trim() ? password : email).focus();
     return;
   }
   button.disabled = true;
+  button.classList.add("busy");
   button.firstElementChild.textContent = "جارٍ الدخول…";
   show("");
   try {
@@ -69,6 +85,7 @@ form.addEventListener("submit", async (event) => {
     show("الاتصال قطع. تأكد من الإنترنت وحاول تاني.");
   } finally {
     button.disabled = false;
+    button.classList.remove("busy");
     button.firstElementChild.textContent = "تسجيل الدخول";
   }
 });

@@ -5,17 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>لوحة التحكم — جدولي</title>
     <meta name="robots" content="noindex" />
-    <meta name="theme-color" content="#0c0a09" />
+    <meta name="theme-color" content="#0b0f19" />
     <link rel="icon" href="favicon.svg" />
+    <script src="js/theme.js" data-shell="admin"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="admin/admin.css" />
   </head>
   <body>
+    <!-- هيكل التحميل لحد ما الجلسة تتأكد والبيانات توصل -->
     <div class="boot" id="boot" role="status" aria-label="جارٍ التحميل">
-      <img src="jadwali-logo.jpg" alt="" />
-      <div class="boot-bar"><span></span></div>
+      <div class="boot-side"><span class="sk" style="height:44px"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span></div>
+      <div class="boot-main">
+        <span class="sk" style="width:9rem;height:14px"></span><span class="sk" style="width:16rem;height:32px"></span>
+        <div class="boot-stats"><span class="sk card-sk"></span><span class="sk card-sk"></span><span class="sk card-sk"></span><span class="sk card-sk"></span></div>
+        <span class="sk card-sk" style="height:180px"></span><span class="sk card-sk" style="height:240px"></span>
+      </div>
     </div>
 
     <div class="shell" id="app" hidden>
@@ -24,6 +31,9 @@
         <div class="brand">
           <img src="jadwali-logo.jpg" alt="" />
           <span><strong>جدولي</strong><small>لوحة الإدارة</small></span>
+          <button type="button" class="icon-btn" id="rail-toggle" aria-label="طيّ القائمة الجانبية" title="طيّ القائمة">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M15 4.5v15"/></svg>
+          </button>
         </div>
         <nav id="nav" aria-label="القائمة الرئيسية"></nav>
         <div class="side-foot">
@@ -45,9 +55,10 @@
           </button>
           <div class="finder">
             <svg class="finder-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            <input id="admin-search" type="search" placeholder="ابحث عن شعبة، فصل، مادة، دكتور أو قاعة" autocomplete="off" />
+            <input id="admin-search" type="search" placeholder="ابحث عن شعبة، فصل، مادة، دكتور أو قاعة" autocomplete="off" aria-label="بحث في لوحة الإدارة" />
             <div id="search-hits" hidden></div>
           </div>
+          <span data-theme-slot=""></span>
           <a class="site-link" href="./" target="_blank" rel="noopener">
             <span>موقع الطلبة</span>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg>
@@ -58,8 +69,8 @@
     </div>
 
     <div id="confirm" class="modal" hidden>
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <p class="kicker">تأكيد الحذف</p>
+      <div class="modal-card danger" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+        <span class="modal-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 16.5v.01"/><path d="M10.3 4.2L2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/></svg></span>
         <h2 id="confirm-title">هيتم حذف الآتي</h2>
         <p id="confirm-text"></p>
         <div class="row">
@@ -75,6 +86,11 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
     <script src="js/data.js"></script>
     <script src="js/supabase-config.js"></script>
-    <script src="admin/admin.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="admin/core.js"></script>
+    <script src="admin/panels.js"></script>
+    <script src="admin/actions.js"></script>
+    <script src="admin/importer.js"></script>
+    <script src="admin/main.js"></script>
   </body>
 </html>

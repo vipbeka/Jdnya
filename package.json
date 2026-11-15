@@ -1,0 +1,10 @@
+{
+  "name": "jadwali",
+  "private": true,
+  "description": "جدولي — جداول محاضرات الأكاديمية الحديثة بالمعادي. موقع ثابت من غير خطوة build.",
+  "scripts": {
+    "check": "node tools/check.mjs",
+    "build": "node tools/check.mjs",
+    "start": "python3 -m http.server 8080"
+  }
+}

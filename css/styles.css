@@ -262,6 +262,7 @@ html[data-shell="app"] #menu-open, html[data-shell="app"] .guest-cta { display: 
 .focus::before { content: ""; position: absolute; z-index: -1; inset: 0; background: radial-gradient(120% 140% at 100% 0%, var(--glow), transparent 55%); }
 .focus.live { border-color: var(--ok-line); }
 .focus.live::before { background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ok) 16%, transparent), transparent 55%); }
+.focus > .badge { justify-self: start; }
 .focus h2 { font-size: clamp(1.375rem, 3.4vw, 1.875rem); line-height: 1.4; overflow-wrap: anywhere; }
 .focus-time { color: var(--fg-2); font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
 .focus-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); }
@@ -622,7 +623,7 @@ body.chat-mode #view { padding: var(--s-2) var(--s-4) 0; }
 .send.stop { background: var(--fg); color: var(--bg); }
 .send:not(:disabled):active { transform: scale(0.92); }
 .fine { margin-top: var(--s-2); color: var(--faint); font-size: var(--text-xs); text-align: center; }
-.to-bottom { position: absolute; left: 50%; top: -24px; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: var(--raised); color: var(--primary-text); box-shadow: var(--shadow-md); transform: translateX(-50%); }
+.to-bottom { position: absolute; inset-inline: 0; margin-inline: auto; top: -24px; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: var(--raised); color: var(--primary-text); box-shadow: var(--shadow-md); }
 .msg .ask-card { align-self: flex-start; display: grid; gap: var(--s-1); width: min(100%, 22rem); padding: var(--s-4); border: 1px solid var(--primary-line); border-radius: var(--r-lg); background: radial-gradient(ellipse at 100% 0%, var(--glow), transparent 55%), var(--surface); }
 .msg .ask-card h2 { font-size: var(--text-lg); }
 .msg .ask-card p { color: var(--muted); font-size: var(--text-sm); }
@@ -642,7 +643,8 @@ body.chat-mode #view { padding: var(--s-2) var(--s-4) 0; }
   }
   @page { size: A4 landscape; margin: 10mm; }
   html, body { background: #fff; }
-  #drawer, .topbar, #tabbar, #toasts, .site-foot, .sync-note, .no-print, .head-actions, .legend, .skip-link { display: none !important; }
+  html[data-shell] #drawer, html[data-shell] #drawer[hidden], html[data-shell] #tabbar, .topbar, #toasts, .site-foot, .sync-note, .no-print, .head-actions, .legend, .skip-link { display: none !important; }
+  html[data-shell] .app { margin: 0 !important; }
   .app { margin: 0 !important; }
   #view { padding: 0 !important; }
   .page { max-width: none; gap: 12px; }
