@@ -14,8 +14,13 @@ function reviewRow(slot = {}) {
   reviewSeq += 1;
   return { id: `r${reviewSeq}`, sel: false, classNumber: "", day: "", start: "", end: "", subject: "", instructor: "", room: "", type: "محاضرة", date: "", notes: "", guessed: false, ...slot };
 }
-function openReview({ kind, sectionId, slots, fileName = "", source = "", strategy = "", warnings = [] }) {
+function openReview({ kind, sectionId, slots, fileName = "", source = "", strategy = "", warnings = [], variants = null, variant = "local", aiSource = null, aiModel = "" }) {
   state.review = {
+    variants: variants || { local: slots },
+    variant,
+    aiSource,
+    aiModel,
+    aiBusy: false,
     kind,
     sectionId,
     rows: (slots.length ? slots : [{}]).map((slot) => reviewRow(slot)),
@@ -109,7 +114,7 @@ function reviewHead() {
   const counts = reviewCounts();
   return `<span class="badge">${counts.total} صف</span>${counts.flagged
     ? `<button type="button" class="badge warn rv-next" data-review-next title="روح لأول حقل محتاج مراجعة"><i class="dot"></i>${counts.flagged} محتاج مراجعة</button>`
-    : `<span class="badge ok"><i class="dot"></i>كله تمام</span>`}${review.strategy ? `<span class="badge primary">${esc(review.strategy)}</span>` : ""}`;
+    : `<span class="badge ok"><i class="dot"></i>كله تمام</span>`}${review.variant === "ai" ? `<span class="badge primary" title="${esc(review.aiModel)}">${icon("assistant", 14)}ذكاء اصطناعي</span>` : review.strategy ? `<span class="badge primary">${esc(review.strategy)}</span>` : ""}`;
 }
 function renderReview() {
   const review = state.review;
@@ -134,7 +139,10 @@ function renderReview() {
       </div>
       <div class="rv-buttons">
         <button type="button" class="ghost" data-row-add>${icon("plus", 16)}<span>صف جديد</span></button>
-        <button type="button" class="ghost" data-review-format title="إعادة تنظيف وتوحيد كل الصفوف">${icon("assistant", 16)}<span>إعادة التنسيق</span></button>
+        <button type="button" class="ghost" data-review-format title="إعادة تنظيف وتوحيد كل الصفوف">${icon("review", 16)}<span>إعادة التنسيق</span></button>
+        ${review.variants.ai && review.variants.local.length
+          ? `<div class="segmented" role="group" aria-label="مصدر القراءة"><button type="button" class="${review.variant === "local" ? "on" : ""}" data-review-variant="local">قراءة عادية (${review.variants.local.length})</button><button type="button" class="${review.variant === "ai" ? "on" : ""}" data-review-variant="ai">${icon("assistant", 14)}ذكاء اصطناعي (${review.variants.ai.length})</button></div>`
+          : review.aiSource && !review.variants.ai ? `<button type="button" class="ghost rv-ai" data-review-ai ${review.aiBusy ? "disabled" : ""}>${icon("assistant", 16)}<span>${review.aiBusy ? "جارٍ التحليل…" : "حلّل بالذكاء الاصطناعي"}</span></button>` : ""}
         <button type="button" class="ghost danger" data-pick-delete ${counts.picked ? "" : "disabled"}>${icon("trash", 16)}<span>حذف المحدد</span></button>
         <label class="check rv-only"><input type="checkbox" data-review-only ${review.onlyIssues ? "checked" : ""} /> المحتاج مراجعة بس</label>
         <div class="segmented" role="group" aria-label="طريقة العرض"><button type="button" class="${review.tab === "edit" ? "on" : ""}" data-review-tab="edit">تعديل</button><button type="button" class="${review.tab === "site" ? "on" : ""}" data-review-tab="site">شكل الموقع</button></div>
@@ -251,6 +259,37 @@ function focusNextIssue() {
   target.select?.();
 }
 
+// ---------- القراءة العادية / الذكاء الاصطناعي ----------
+async function switchVariant(name) {
+  const review = state.review;
+  if (!review || review.variant === name || !review.variants[name]) return;
+  if (review.dirty && !(await UI.confirm({ title: "تبدّل مصدر القراءة؟", text: "التعديلات اللي عملتها على الصفوف الحالية هتضيع.", confirmLabel: "بدّل" }))) return;
+  review.variant = name;
+  review.rows = review.variants[name].map((slot) => reviewRow(slot));
+  review.dirty = false;
+  renderReview();
+}
+async function runReviewAi() {
+  const review = state.review;
+  if (!review || review.aiBusy || !review.aiSource) return;
+  review.aiBusy = true;
+  renderReview();
+  UI.toast("جارٍ التحليل بالذكاء الاصطناعي…", "info", { id: "review", duration: 0 });
+  const ai = await aiExtract(review.aiSource);
+  if (state.review !== review) return;
+  review.aiBusy = false;
+  if (!ai.ok) {
+    renderReview();
+    return UI.toast(aiErrorText(ai), "error", { id: "review" });
+  }
+  const fallback = review.rows.find((row) => row.classNumber)?.classNumber || "";
+  review.variants.ai = ai.slots.map((slot) => ({ ...slot, classNumber: slot.classNumber || fallback }));
+  review.aiModel = ai.model;
+  renderReview();
+  UI.toast(`الذكاء الاصطناعي طلّع ${ai.slots.length} صف. اختار «ذكاء اصطناعي» فوق عشان تشوفهم.`, "success", { id: "review", duration: 6000 });
+  if (!review.dirty) await switchVariant("ai");
+}
+
 // ---------- النشر ----------
 async function confirmReview() {
   const review = state.review;
@@ -328,6 +367,9 @@ function wireReview() {
     if (event.target.closest("[data-review-publish]")) return confirmReview();
     if (event.target.closest("[data-review-next]")) return focusNextIssue();
     if (event.target.closest("[data-review-format]")) return reformatReview();
+    if (event.target.closest("[data-review-ai]")) return runReviewAi();
+    const variantButton = event.target.closest("[data-review-variant]");
+    if (variantButton) return switchVariant(variantButton.dataset.reviewVariant);
     if (event.target.closest("button[data-review-only]")) { review.onlyIssues = false; return renderReview(); }
     const tab = event.target.closest("[data-review-tab]");
     if (tab) { review.tab = tab.dataset.reviewTab; return renderReview(); }

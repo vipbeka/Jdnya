@@ -40,6 +40,7 @@ document.getElementById("screen").addEventListener("change", async (event) => {
     const field = document.getElementById("upload-class");
     if (field) field.placeholder = event.target.value === "exams" ? "سيبه فاضي لو الامتحان لكل الشعبة" : "سيبه فاضي لو الملف فيه أرقام الفصول";
   }
+  if (event.target.id === "upload-ai") state.uploadAi = event.target.checked;
   if (event.target.id === "upload-file" && event.target.files?.[0]) await readUpload(event.target.files[0]);
   if (event.target.id === "new-role") {
     const field = document.getElementById("new-section");

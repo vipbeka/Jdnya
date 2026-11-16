@@ -626,11 +626,13 @@ function wordsToTokens(data, wanted) {
 async function slotsFromCanvas(reader, canvas, kind, onProgress, base, share) {
   const candidates = [];
   let classHint = "";
+  let rowsText = "";
   const found = await matrixFromCanvas(reader, canvas, onProgress, base, share);
   if (found) {
     classHint = findClass(found.headText) || "";
     const head = found.headText.split("\n").filter(Boolean).map((line) => [line]);
     candidates.push({ ...parseTimetable([...head, ...found.matrix], kind, { spans: shiftSpans(found.spans, head.length) }), source: "خطوط الجدول" });
+    rowsText = rowsToText([...head, ...found.matrix]);
   }
   const top = candidates[0];
   if (!top || top.slots.length < 2) {
@@ -644,9 +646,10 @@ async function slotsFromCanvas(reader, canvas, kind, onProgress, base, share) {
     const rows = tokens.length >= 4 ? tableFromTokens(tokens) : [];
     if (!classHint) classHint = rows.map((row) => findClass(row.join(" "))).find(Boolean) || "";
     candidates.push({ ...parseTimetable(rows, kind), source: "قراءة الصفحة" });
+    if (!rowsText) rowsText = rowsToText(rows);
   }
   candidates.sort((a, b) => b.score - a.score);
-  return { ...(candidates[0] || { slots: [], strategy: "", score: -Infinity }), classHint };
+  return { ...(candidates[0] || { slots: [], strategy: "", score: -Infinity }), classHint, rowsText };
 }
 function shiftSpans(spans, offset) {
   if (!offset) return spans;
@@ -692,6 +695,69 @@ async function rowsFromSheet(file, type) {
   return tables;
 }
 
+// ---------- الذكاء الاصطناعي ----------
+// بنبعت للدالة نص الجدول المستخرج (وصورته لو صورة)، وهي بترجّع صفوف منظمة. النتيجة بتعدّي على نفس المنسّق وشاشة المراجعة.
+function rowsToText(rows) {
+  return (rows || []).map((row) => (Array.isArray(row) ? row : [row]).map((cell) => String(cell ?? "").replace(/\s*\n\s*/g, " / ").trim()).join(" | ")).filter((line) => line.replace(/[|\s]/g, "")).join("\n");
+}
+function canvasDataUrl(canvas) {
+  const scale = Math.min(1, 1700 / Math.max(canvas.width, canvas.height));
+  const copy = document.createElement("canvas");
+  copy.width = Math.round(canvas.width * scale);
+  copy.height = Math.round(canvas.height * scale);
+  const context = copy.getContext("2d");
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, copy.width, copy.height);
+  context.drawImage(canvas, 0, 0, copy.width, copy.height);
+  return copy.toDataURL("image/jpeg", 0.82);
+}
+const AI_ERRORS = {
+  unauthorized: "الجلسة انتهت أو الحساب من غير صلاحية. سجّل دخولك تاني.",
+  forbidden: "الدالة مش مسموح تتنادى من العنوان ده.",
+  not_configured: "مفتاح Groq مش متضاف في أسرار الدوال.",
+  not_deployed: "دالة الذكاء الاصطناعي (jadwali-import) مش منشورة.",
+  bad_key: "مفتاح Groq مرفوض. راجعه في أسرار الدوال.",
+  too_large: "الصورة كبيرة على النموذج.",
+  network: "الاتصال بالنموذج قطع.",
+};
+function aiErrorText(out) {
+  if (out.error === "busy") return `النموذج عليه ضغط. جرّب بعد ${out.retry || 20} ثانية.`;
+  if (out.error === "quota") return "حد النموذج اليومي خلص. جرّب بعدين.";
+  return AI_ERRORS[out.error] || "النموذج ما قدرش يقرا الجدول.";
+}
+async function aiExtract({ kind, text = "", image = "", classNumber = "" }) {
+  const { data } = await client.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) return { ok: false, error: "unauthorized" };
+  let response;
+  try {
+    response = await fetch(`${config.url}/functions/v1/${window.JADWALI_IMPORT_FN || "jadwali-import"}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: config.key },
+      body: JSON.stringify({ kind, text: String(text).slice(0, 24000), image, classNumber }),
+    });
+  } catch {
+    return { ok: false, error: "network" };
+  }
+  if (response.status === 404) return { ok: false, error: "not_deployed" };
+  let out = {};
+  try { out = await response.json(); } catch { /* رد فاضي */ }
+  if (!response.ok || !Array.isArray(out.rows)) return { ok: false, error: out.error || "failed", retry: out.retry };
+  // رقم الفصل: من الصف نفسه، وإلا من عنوان الجدول في النص، وإلا اللي الأدمن كتبه
+  const fallback = classNumber || String(text).split("\n").slice(0, 12).map(findClass).find(Boolean) || "";
+  const slots = formatSlots(out.rows.map((row) => ({ ...row, classNumber: row.classNumber || fallback })), kind);
+  return { ok: slots.length > 0, error: slots.length ? "" : "failed", slots, model: out.model || "", via: out.via || "" };
+}
+// نسبة الصفوف اللي فيها مشكلة غير رقم الفصل
+function weakShare(slots, kind) {
+  if (!slots.length) return 1;
+  return slots.filter((slot) => {
+    const issues = slotIssues(slot, kind);
+    delete issues.classNumber;
+    return Object.keys(issues).length > 0;
+  }).length / slots.length;
+}
+
 // ---------- القراءة الكاملة ----------
 // بيرجّع { slots, strategy, source, classHint, pages, warnings }.
 async function extractTimetable(file, kind, onProgress) {
@@ -709,7 +775,8 @@ async function extractTimetable(file, kind, onProgress) {
       const sheetClass = findClass(table.name) || (/^\d{1,3}$/.test(table.name.trim()) ? table.name.trim() : "");
       return { ...result, slots: withClass(result.slots, sheetClass) };
     }).filter((part) => part.slots.length);
-    return { slots: parts.flatMap((part) => part.slots), strategy: parts[0]?.strategy || "", source: type === "csv" ? "CSV" : "Excel", classHint: "", pages: tables.length, warnings };
+    const text = tables.map((table) => `${tables.length > 1 ? `ورقة: ${table.name}\n` : ""}${rowsToText(table.rows)}`).join("\n\n");
+    return { slots: parts.flatMap((part) => part.slots), strategy: parts[0]?.strategy || "", source: type === "csv" ? "CSV" : "Excel", classHint: "", pages: tables.length, warnings, ai: { text } };
   }
 
   if (type === "pdf") {
@@ -719,6 +786,8 @@ async function extractTimetable(file, kind, onProgress) {
     if (pdf.numPages > limit) warnings.push(`الملف ${pdf.numPages} صفحة، اتقرا أول ${limit} بس.`);
     const all = [];
     const scanned = [];
+    const pageTexts = [];
+    let aiImage = "";
     let hint = "";
     let strategy = "";
     for (let number = 1; number <= limit; number += 1) {
@@ -737,10 +806,15 @@ async function extractTimetable(file, kind, onProgress) {
           const canvas = await renderPdfPage(page);
           const grid = detectGrid(canvas);
           const table = grid && matrixFromPdfText(grid, tokens, canvas.width / viewport.width);
-          if (table) candidates.push({ ...parseTimetable(table.rows, kind, { spans: table.spans }), source: "خطوط الجدول" });
+          if (table) {
+            candidates.push({ ...parseTimetable(table.rows, kind, { spans: table.spans }), source: "خطوط الجدول" });
+            pageTexts.push(rowsToText(table.rows));
+          }
         } catch { /* الصفحة ما اترسمتش، نكمّل بالنص */ }
       }
-      candidates.push({ ...parseTimetable(tableFromTokens(tokens), kind), source: "نص الملف" });
+      const plainRows = tableFromTokens(tokens);
+      if (pageTexts.length < number) pageTexts.push(rowsToText(plainRows));
+      candidates.push({ ...parseTimetable(plainRows, kind), source: "نص الملف" });
       if (kind === "lectures") {
         const tuned = formatSlots(academySlotsFromItems(items), kind);
         if (tuned.length) candidates.push({ slots: tuned, strategy: "جدول الأكاديمية", score: scoreSlots(tuned, kind), source: "نص الملف" });
@@ -758,7 +832,10 @@ async function extractTimetable(file, kind, onProgress) {
       try {
         for (let index = 0; index < pages.length; index += 1) {
           const page = await pdf.getPage(pages[index]);
-          const result = await slotsFromCanvas(reader, await renderPdfPage(page), kind, onProgress, 0.2 + (index / pages.length) * 0.75, 0.75 / pages.length);
+          const canvas = await renderPdfPage(page);
+          if (!aiImage) aiImage = canvasDataUrl(canvas);
+          const result = await slotsFromCanvas(reader, canvas, kind, onProgress, 0.2 + (index / pages.length) * 0.75, 0.75 / pages.length);
+          pageTexts.push(result.rowsText || "");
           if (!hint) hint = result.classHint;
           strategy = strategy || result.strategy;
           all.push(...withClass(result.slots, result.classHint));
@@ -766,9 +843,9 @@ async function extractTimetable(file, kind, onProgress) {
       } finally {
         await reader.terminate();
       }
-      return { slots: all, strategy, source: "PDF متصوّر (OCR)", classHint: hint, pages: limit, warnings };
+      return { slots: all, strategy, source: "PDF متصوّر (OCR)", classHint: hint, pages: limit, warnings, ai: { text: pageTexts.filter(Boolean).join("\n\n"), image: pages.length === 1 ? aiImage : "" } };
     }
-    return { slots: all, strategy, source: "PDF نصي", classHint: hint, pages: limit, warnings };
+    return { slots: all, strategy, source: "PDF نصي", classHint: hint, pages: limit, warnings, ai: { text: pageTexts.filter(Boolean).join("\n\n") } };
   }
 
   // صورة
@@ -777,7 +854,7 @@ async function extractTimetable(file, kind, onProgress) {
   const reader = await openReader(onProgress);
   try {
     const result = await slotsFromCanvas(reader, canvas, kind, onProgress, 0.2, 0.75);
-    return { slots: result.slots, strategy: result.strategy, source: "صورة (OCR)", classHint: result.classHint, pages: 1, warnings };
+    return { slots: result.slots, strategy: result.strategy, source: "صورة (OCR)", classHint: result.classHint, pages: 1, warnings, ai: { text: result.rowsText || "", image: canvasDataUrl(canvas) } };
   } finally {
     await reader.terminate();
   }
@@ -815,21 +892,43 @@ async function readUpload(file) {
     const result = await extractTimetable(file, kind, (update) => uploadProgress({ ...meta, ...update }));
     const sectionId = document.getElementById("upload-section")?.value || state.uploadSection || "";
     const typedClass = latin(document.getElementById("upload-class")?.value || "").replace(/\D/g, "");
-    if (!result.slots.length) {
+    const withClass = (list) => list.map((slot) => ({ ...slot, classNumber: typedClass || slot.classNumber || result.classHint || "" }));
+    const variants = { local: withClass(result.slots) };
+    const aiSource = result.ai && (result.ai.image || (result.ai.text || "").trim().length >= 20) ? { ...result.ai, kind, classNumber: typedClass || result.classHint || (new Set(variants.local.map((slot) => slot.classNumber).filter(Boolean)).size === 1 ? variants.local[0].classNumber : "") } : null;
+    let variant = "local";
+    let aiModel = "";
+    // الذكاء الاصطناعي بيشتغل لوحده لما القراءة المحلية ضعيفة أو المصدر صورة، وممكن يتطلب يدوي من شاشة المراجعة
+    const useAi = document.getElementById("upload-ai")?.checked !== false;
+    const weak = !variants.local.length || weakShare(variants.local, kind) > 0.25 || /OCR/.test(result.source || "");
+    if (aiSource && useAi && weak) {
+      uploadProgress({ ...meta, text: "جارٍ التحليل بالذكاء الاصطناعي…", ratio: 0.96 });
+      const ai = await aiExtract(aiSource);
+      if (ai.ok) {
+        variants.ai = withClass(ai.slots);
+        aiModel = ai.model;
+        // الأنضف يكسب: صفوف أكتر مكتملة ومشاكل أقل
+        if (!variants.local.length || scoreSlots(variants.ai, kind) > scoreSlots(variants.local, kind)) variant = "ai";
+      } else if (!variants.local.length) {
+        result.warnings.push(`الذكاء الاصطناعي: ${aiErrorText(ai)}`);
+      } else {
+        UI.toast(`الذكاء الاصطناعي ما اشتغلش (${aiErrorText(ai)}) فكملنا بالقراءة العادية.`, "warn", { duration: 6000 });
+      }
+    }
+    const slots = variants[variant];
+    if (!slots.length) {
       uploadProgress({
         ...meta,
         error: true,
         text: "ما قدرناش نطلّع محاضرات من الملف ده.",
-        tips: fileKind(file) === "image" || /OCR/.test(result.source || "")
+        tips: [...result.warnings, ...(fileKind(file) === "image" || /OCR/.test(result.source || "")
           ? ["صوّر الجدول كامل ومفرود ومن غير ميل.", "خلّي الإضاءة كويسة والكلام واضح ومش مهزوز.", "لو عندك نسخة PDF أو Excel من الجدول ارفعها، قراءتها أدق."]
-          : ["اتأكد إن الملف فيه جدول فيه أيام ومواعيد ومواد.", kind === "exams" ? "لو ده جدول محاضرات اختار «جدول محاضرات» فوق." : "لو ده جدول امتحانات اختار «جدول امتحانات» فوق.", "تقدر تفتح جدول فاضي وتكتب الصفوف يدوي."],
+          : ["اتأكد إن الملف فيه جدول فيه أيام ومواعيد ومواد.", kind === "exams" ? "لو ده جدول محاضرات اختار «جدول محاضرات» فوق." : "لو ده جدول امتحانات اختار «جدول امتحانات» فوق.", "تقدر تفتح جدول فاضي وتكتب الصفوف يدوي."])],
       });
       UI.toast("ما قدرناش نقرا الجدول من الملف.", "error");
       return;
     }
-    const slots = result.slots.map((slot) => ({ ...slot, classNumber: typedClass || slot.classNumber || result.classHint || "" }));
-    uploadProgress({ ...meta, done: true, text: `اتقرا ${slots.length} صف. راجعهم قبل النشر.` });
-    openReview({ kind, sectionId, slots, fileName: file.name, source: result.source, strategy: result.strategy, warnings: result.warnings });
+    uploadProgress({ ...meta, done: true, text: `اتقرا ${slots.length} صف${variant === "ai" ? " بالذكاء الاصطناعي" : ""}. راجعهم قبل النشر.` });
+    openReview({ kind, sectionId, slots, fileName: file.name, source: result.source, strategy: result.strategy, warnings: result.warnings, variants, variant, aiSource, aiModel });
   } catch (error) {
     console.error(error);
     uploadProgress({ ...meta, error: true, text: error?.message || "الملف ما اتقراش." });

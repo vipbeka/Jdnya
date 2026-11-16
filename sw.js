@@ -1,4 +1,4 @@
-const CACHE = "jadwali-html-60";
+const CACHE = "jadwali-html-61";
 const DATA_CACHE = "jadwali-data-2";
 const FILES = ["./", "./index.html", "./css/tokens.css", "./css/styles.css", "./js/theme.js", "./js/ui.js", "./js/supabase-config.js", "./js/data.js", "./js/app/core.js", "./js/app/views.js", "./js/app/assistant.js", "./js/app/share.js", "./js/app/push.js", "./js/app/sync.js", "./js/app/events.js", "./js/app/boot.js", "./js/firebase.js", "./jadwali-logo.jpg", "./favicon.svg", "./manifest.webmanifest", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 let calendarIcs = "";

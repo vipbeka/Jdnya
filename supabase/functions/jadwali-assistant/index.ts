@@ -7,7 +7,8 @@ const ALLOWED = new Set([
 
 // الأقوى أولًا. لو فشل أي موديل بأي سبب (مش موجود، عليه ضغط، حدّه خلص) بنجرّب اللي بعده.
 // كل موديل ليه حد استخدام مستقل عند Groq، فوجود بدائل بيزوّد عدد الأسئلة المتاحة في اليوم.
-const MODELS = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+// القائمة دي هي الموديلات النصية المتاحة فعلًا على حساب Groq بتاع جدولي (اتأكدنا منها من /v1/models).
+const MODELS = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"];
 // حجم بيانات الطالب المبعوتة للموديل. كل ما تكبر، كل سؤال بياكل من حد «التوكنز في الدقيقة» أكتر.
 const CONTEXT_MAX = 6000;
 const CONTEXT_LITE = 2600;

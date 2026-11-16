@@ -354,3 +354,5 @@ td.warn select:focus, td.warn input:focus { box-shadow: 0 0 0 3px var(--warn-sof
 }
 /* وشاشة المراجعة مفتوحة، الإشعارات بتطلع فوق عشان ما تغطيش أزرار النشر */
 body.review-open #toasts { top: var(--s-4); bottom: auto; flex-direction: column; }
+.rv-ai { border-color: var(--primary-line); color: var(--primary-text); }
+.rv-buttons .segmented button { min-height: 32px; padding: 0 var(--s-3); }

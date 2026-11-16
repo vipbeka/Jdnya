@@ -7,3 +7,5 @@ window.JADWALI_PUSH_KEY = "BIm044JWGYyrGqEz_fjBk33oUOXrsOKUkpqt4YFoKd8oHEnIm4w4R
 // اسم دالة الإرسال في Supabase (Edge Functions). غيّره لو سمّيتها باسم تاني.
 window.JADWALI_PUSH_FN = "swift-action";
 window.JADWALI_ASSISTANT_FN = "jadwali-assistant";
+// دالة قراءة الجداول المرفوعة بالذكاء الاصطناعي (لوحة الإدارة).
+window.JADWALI_IMPORT_FN = "jadwali-import";

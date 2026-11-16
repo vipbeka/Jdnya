@@ -606,6 +606,7 @@ function exportPanel() {
         <span class="muted">PDF · PNG · JPG · WEBP · Excel · CSV — لحد 20 ميجا</span>
         <input id="upload-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp" />
       </label>
+      <label class="check"><input type="checkbox" id="upload-ai" ${state.uploadAi === false ? "" : "checked"} /> استعين بالذكاء الاصطناعي لو القراءة مش واضحة أو الملف صورة</label>
       <div id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></div>
       <div class="row"><button type="button" class="ghost" id="upload-manual">${icon("plus", 16)}أو ابدأ بجدول فاضي</button></div>
     </form>
@@ -614,7 +615,8 @@ function exportPanel() {
       <ol class="upload-steps">
         ${step(1, "القراءة", "نص الـ PDF بيتقري مباشرة، والصور والـ PDF المتصوّر بيتقروا خانة خانة بالعربي والإنجليزي.")}
         ${step(2, "الفهم والتنسيق", "اليوم والوقت والمادة والمحاضر والقاعة بيتعرفوا من محتواهم، مش من ترتيب الأعمدة. المواعيد بتتوحّد على صيغة جدولي.")}
-        ${step(3, "المراجعة والنشر", "أي حقل ناقص أو مشكوك فيه بيتعلّم بالأصفر. عدّل، ضيف، احذف، وبعدها أكّد النشر.")}
+        ${step(3, "الذكاء الاصطناعي", "الصور والجداول الصعبة بتتبعت لنموذج بيشوف الجدول ويرتّبه، وتقدر تقارن نتيجته بالقراءة العادية وتختار الأحسن.")}
+        ${step(4, "المراجعة والنشر", "أي حقل ناقص أو مشكوك فيه بيتعلّم بالأصفر. عدّل، ضيف، احذف، وبعدها أكّد النشر.")}
       </ol>
     </section>`;
 }
