@@ -16,6 +16,10 @@ const ICONS = {
   log: '<path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+  trash: '<path d="M4 7h16M10 7V4.5h4V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z"/><path d="M14 3v6h6"/>',
   visits: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   year: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>',
   term: '<path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
@@ -582,21 +586,38 @@ function exportPanel() {
   const sections = catalogSections();
   const sectionId = state.uploadSection || sections[0]?.id || "";
   const classes = catalogClasses(sectionId);
+  const kind = state.uploadKind || "lectures";
+  const step = (n, title, text) => `<li><span>${n}</span><div><b>${title}</b><p class="muted">${text}</p></div></li>`;
   return `<p class="kicker">رفع جدول</p><h1>رفع محاضرات أو امتحانات</h1>
-    <p class="lead">ارفع PDF الجدول مرة واحدة. اختَر جدول محاضرات، والشعبة، واكتب رقم الفصل. الملف لازم يكون فيه نص مش صورة متصورة، والخطوط والمواعيد ظاهرة.</p>
-    <form id="upload-form">
-      <label class="check"><input type="radio" name="upload-kind" value="lectures" checked /> جدول محاضرات</label>
-      <label class="check"><input type="radio" name="upload-kind" value="exams" /> جدول امتحانات</label>
-      <label>الشعبة<select id="upload-section">${sections.map((item) => `<option value="${esc(item.id)}" ${item.id === sectionId ? "selected" : ""}>${esc(item.year_label)} · ${esc(item.title)}</option>`).join("")}</select></label>
-      <label>الفصل<input id="upload-class" list="class-list" placeholder="رقم الفصل، مثال 5" /></label>
+    <p class="lead">ارفع الجدول بأي شكل: PDF، صورة، Excel أو CSV. جدولي بيقرا الصفوف والأعمدة مهما كان ترتيبها، وبينسّقها، وبيعرضهالك تراجعها وتعدّلها قبل ما أي حاجة تتنشر.</p>
+    <form id="upload-form" data-nogrid novalidate>
+      <div class="upload-kinds" role="radiogroup" aria-label="نوع الجدول">
+        <label class="check"><input type="radio" name="upload-kind" value="lectures" ${kind === "lectures" ? "checked" : ""} /> جدول محاضرات</label>
+        <label class="check"><input type="radio" name="upload-kind" value="exams" ${kind === "exams" ? "checked" : ""} /> جدول امتحانات</label>
+      </div>
+      <div class="upload-grid">
+        <label>الشعبة<select id="upload-section">${sections.map((item) => `<option value="${esc(item.id)}" ${item.id === sectionId ? "selected" : ""}>${esc(item.year_label)} · ${esc(item.title)}</option>`).join("")}</select></label>
+        <label>الفصل (اختياري)<input id="upload-class" list="class-list" inputmode="numeric" placeholder="${kind === "exams" ? "سيبه فاضي لو الامتحان لكل الشعبة" : "سيبه فاضي لو الملف فيه أرقام الفصول"}" /></label>
+      </div>
       <datalist id="class-list">${classes.map((item) => `<option value="${esc(item)}"></option>`).join("")}</datalist>
-      <label class="drop" id="upload-drop">اسحب PDF أو صورة الجدول هنا<input id="upload-file" type="file" accept=".xlsx,.xls,.csv,.pdf,application/pdf,image/jpeg,image/png,image/webp" required /></label>
-      <div class="row"><button class="btn" id="upload-publish" type="button" disabled>نشر الجدول على الموقع</button></div>
+      <label class="drop" id="upload-drop" tabindex="0">
+        <span class="drop-ico">${icon("export", 26)}</span>
+        <b>اسحب الملف هنا أو اضغط للاختيار</b>
+        <span class="muted">PDF · PNG · JPG · WEBP · Excel · CSV — لحد 20 ميجا</span>
+        <input id="upload-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp" />
+      </label>
+      <div id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></div>
+      <div class="row"><button type="button" class="ghost" id="upload-manual">${icon("plus", 16)}أو ابدأ بجدول فاضي</button></div>
     </form>
-    <div id="upload-preview"></div>
-    <p class="muted">مش محتاج تنسّق الملف. لو الجدول صورة جوه الـ PDF هيحاول يقرأها. راجع المعاينة قبل النشر.</p>`;
+    <section class="panel">
+      <h2 class="panel-title">بيشتغل إزاي؟</h2>
+      <ol class="upload-steps">
+        ${step(1, "القراءة", "نص الـ PDF بيتقري مباشرة، والصور والـ PDF المتصوّر بيتقروا خانة خانة بالعربي والإنجليزي.")}
+        ${step(2, "الفهم والتنسيق", "اليوم والوقت والمادة والمحاضر والقاعة بيتعرفوا من محتواهم، مش من ترتيب الأعمدة. المواعيد بتتوحّد على صيغة جدولي.")}
+        ${step(3, "المراجعة والنشر", "أي حقل ناقص أو مشكوك فيه بيتعلّم بالأصفر. عدّل، ضيف، احذف، وبعدها أكّد النشر.")}
+      </ol>
+    </section>`;
 }
-
 const SCREENS = { home, sections: sectionsPanel, classes: classesPanel, lectures: lecturesPanel, exams: examsPanel, about: aboutPanel, assistant: assistantPanel, notices: noticesPanel, settings: settingsPanel, users: usersPanel, log: logPanel, export: exportPanel, groups: groupsPanel, holidays: holidaysPanel, push: pushPanel, insights: insightsPanel };
 
 function noteTone(text) {

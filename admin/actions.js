@@ -475,35 +475,11 @@ async function importCurrent() {
   await reload(`اتستورد ${classRows.length} فصل و${lectures.length} محاضرة، من غير تكرار. موقع الطلبة مش هيتغير غير بعد تفعيل النشر.`);
 }
 
-async function publishUpload() {
-  const sectionId = document.getElementById("upload-section").value;
-  const classNumber = String(document.getElementById("upload-class").value || "").replace(/[٠-٩]/g, (digit) => "٠١٢٣٤٥٦٧٨٩".indexOf(digit)).trim();
-  const kind = document.querySelector("[name=upload-kind]:checked")?.value || "lectures";
-  const section = catalogSections().find((item) => item.id === sectionId);
-  const typedClass = classNumber;
-  const slots = state.preview || [];
-  const groups = kind === "lectures"
-    ? (typedClass
-      ? [{ classNumber: typedClass, slots }]
-      : [...new Set(slots.map((item) => item.classNumber).filter(Boolean))].map((number) => ({
-        classNumber: number,
-        slots: slots.filter((item) => item.classNumber === number),
-      })))
-    : (typedClass
-      ? [{ classNumber: typedClass, slots }]
-      : [...new Set(slots.map((item) => String(item.classNumber || "")))].map((number) => ({
-        classNumber: number,
-        slots: slots.filter((item) => String(item.classNumber || "") === number),
-      })));
-  if (!section || !state.preview?.length || !groups.length) {
-    state.note = kind === "lectures" ? "اكتب رقم الفصل، أو خلّي الملف فيه أرقام الفصول." : "اختار الشعبة واستنى المعاينة تظهر.";
-    state.bad = true;
-    draw();
-    return;
-  }
-  state.note = "جارٍ النشر…";
-  state.bad = false;
-  draw();
+// نشر الصفوف المؤكَّدة من شاشة المراجعة. بيستبدل جدول كل فصل ظاهر في الصفوف، بنفس أعمدة القاعدة الحالية.
+async function publishReview(review, section) {
+  const kind = review.kind;
+  const numbers = [...new Set(review.rows.map((row) => String(row.classNumber || "")))];
+  const groups = numbers.map((number) => ({ classNumber: number, slots: review.rows.filter((row) => String(row.classNumber || "") === number) }));
   const savedSection = await write(client.from("sections").upsert({
     id: section.id,
     title: section.title,
@@ -513,18 +489,18 @@ async function publishUpload() {
     year_label: section.year_label || "الفرقة",
     sort: section.sort || 0,
   }));
-  if (!savedSection) return;
+  if (!savedSection) return false;
   for (const group of groups) {
     if (kind === "lectures") {
       const savedClass = await write(client.from("classes").upsert({
-        section_id: sectionId,
+        section_id: section.id,
         class_number: group.classNumber,
         group_name: "",
       }, { onConflict: "section_id,class_number" }));
-      if (!savedClass) return;
+      if (!savedClass) return false;
       const classId = savedClass[0].id;
       const cleared = await client.from("lectures").delete().eq("class_id", classId);
-      if (cleared.error) return fail(cleared.error);
+      if (cleared.error) { fail(cleared.error); return false; }
       const inserted = await write(client.from("lectures").insert(group.slots.map((slot) => ({
         class_id: classId,
         day: slot.day,
@@ -533,14 +509,15 @@ async function publishUpload() {
         subject: slot.subject,
         instructor: slot.instructor || "",
         room: slot.room || "",
+        note: review.noteType && slot.type && slot.type !== "محاضرة" ? slot.type : "",
       }))));
-      if (!inserted) return;
+      if (!inserted) return false;
       await touchClass(classId);
     } else {
-      const removed = await client.from("exams").delete().eq("section_id", sectionId).eq("class_number", group.classNumber);
-      if (removed.error) return fail(removed.error);
+      const removed = await client.from("exams").delete().eq("section_id", section.id).eq("class_number", group.classNumber);
+      if (removed.error) { fail(removed.error); return false; }
       const inserted = await write(client.from("exams").insert(group.slots.map((slot) => ({
-        section_id: sectionId,
+        section_id: section.id,
         class_number: group.classNumber,
         title: slot.subject,
         subject: slot.subject,
@@ -548,19 +525,18 @@ async function publishUpload() {
         start_time: slot.start || "",
         end_time: slot.end || "",
         room: slot.room || "",
-        notes: slot.notes || (!/^\d{4}-\d{2}-\d{2}$/.test(String(slot.date || "")) ? String(slot.date || "") : ""),
+        notes: slot.notes || "",
       }))));
-      if (!inserted) return;
+      if (!inserted) return false;
     }
   }
   const published = await markPublished();
+  await log("نشر", kind === "lectures" ? "محاضرات" : "امتحانات", `${section.title} · ${groups.map((group) => group.classNumber || "كل الشعبة").join("، ")}`);
   if (!published) {
-    state.note = "الجدول اتحفظ، لكن تفعيله على الموقع محتاج حساب سوبر أدمن.";
-    state.bad = true;
-    draw();
-    return;
+    await reload("");
+    UI.toast("الجدول اتحفظ، لكن تفعيله على الموقع محتاج حساب سوبر أدمن.", "warn", { id: "admin-note", duration: 8000 });
+    return true;
   }
-  await log("نشر", kind === "lectures" ? "محاضرات" : "امتحانات", `${section.title} · ${groups.map((group) => group.classNumber).join("، ")}`);
-  state.preview = [];
-  await reload("اتنشر. حدّث موقع الطلبة وافتح نفس الشعبة والفصل.");
+  await reload(`اتنشر ${review.rows.length} ${kind === "lectures" ? "محاضرة" : "امتحان"}. حدّث موقع الطلبة وافتح نفس الشعبة والفصل.`);
+  return true;
 }

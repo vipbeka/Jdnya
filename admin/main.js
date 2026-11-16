@@ -36,8 +36,9 @@ document.getElementById("screen").addEventListener("change", async (event) => {
     if (list) list.innerHTML = catalogClasses(event.target.value).map((item) => `<option value="${esc(item)}"></option>`).join("");
   }
   if (event.target.name === "upload-kind") {
+    state.uploadKind = event.target.value;
     const field = document.getElementById("upload-class");
-    if (field) field.placeholder = event.target.value === "exams" ? "سيبه فاضي لو الامتحان لكل الشعبة" : "رقم الفصل، مثال 5";
+    if (field) field.placeholder = event.target.value === "exams" ? "سيبه فاضي لو الامتحان لكل الشعبة" : "سيبه فاضي لو الملف فيه أرقام الفصول";
   }
   if (event.target.id === "upload-file" && event.target.files?.[0]) await readUpload(event.target.files[0]);
   if (event.target.id === "new-role") {
@@ -53,15 +54,41 @@ document.getElementById("screen").addEventListener("change", async (event) => {
   }
 });
 
+// السحب والإفلات: المنطقة بتنوّر والملف بيتقري، وإفلات ملف بره المنطقة ما بيفتحوش في المتصفح
+const dropZone = (event) => event.target.closest?.("#upload-drop");
 document.getElementById("screen").addEventListener("dragover", (event) => {
-  if (!event.target.closest("#upload-drop")) return;
+  const zone = dropZone(event);
+  if (!zone) return;
   event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  zone.classList.add("over");
+});
+document.getElementById("screen").addEventListener("dragleave", (event) => {
+  const zone = dropZone(event);
+  if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("over");
 });
 document.getElementById("screen").addEventListener("drop", async (event) => {
-  if (!event.target.closest("#upload-drop")) return;
+  const zone = dropZone(event);
+  if (!zone) return;
   event.preventDefault();
-  const file = event.dataTransfer?.files?.[0];
-  if (file) await readUpload(file);
+  zone.classList.remove("over");
+  const files = event.dataTransfer?.files;
+  if (files?.length > 1) UI.toast("هنقرا أول ملف بس. ارفع الباقي واحد واحد.", "warn");
+  if (files?.[0]) await readUpload(files[0]);
+});
+window.addEventListener("dragover", (event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); });
+window.addEventListener("drop", (event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); });
+document.getElementById("screen").addEventListener("keydown", (event) => {
+  if ((event.key === "Enter" || event.key === " ") && event.target.id === "upload-drop") {
+    event.preventDefault();
+    document.getElementById("upload-file")?.click();
+  }
+});
+// لصق صورة الجدول مباشرة (Ctrl+V) وانت في صفحة الرفع
+document.addEventListener("paste", (event) => {
+  if (state.panel !== "export" || state.review || event.target.closest?.("input, textarea")) return;
+  const file = [...(event.clipboardData?.files || [])][0];
+  if (file) { event.preventDefault(); readUpload(file); }
 });
 
 document.getElementById("screen").addEventListener("click", async (event) => {
@@ -89,7 +116,11 @@ document.getElementById("screen").addEventListener("click", async (event) => {
   const removeButton = event.target.closest("[data-delete]");
   const saveUser = event.target.closest("[data-save-user]");
   if (event.target.id === "import-current") return importCurrent();
-  if (event.target.id === "upload-publish") return publishUpload();
+  if (event.target.closest("#upload-manual")) {
+    const kind = document.querySelector("[name=upload-kind]:checked")?.value || "lectures";
+    const number = latin(document.getElementById("upload-class")?.value || "").replace(/\D/g, "");
+    return openReview({ kind, sectionId: document.getElementById("upload-section")?.value || "", slots: [{ classNumber: number }], source: "إدخال يدوي" });
+  }
   if (event.target.id === "archive-term") return askArchive();
   const archiveButton = event.target.closest("[data-archive]");
   if (archiveButton) {
@@ -206,6 +237,7 @@ document.getElementById("screen").addEventListener("input", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (state.review) { closeReview(); return; }
     if (state.edit) { state.edit = null; draw(); }
     closeMenu();
     document.getElementById("search-hits").hidden = true;
@@ -273,3 +305,5 @@ client.auth.onAuthStateChange((event, session) => {
 client.auth.getSession().then(({ data }) => {
   if (!data?.session) toLogin();
 }).catch(() => toLogin("offline"));
+
+wireReview();
