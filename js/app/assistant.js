@@ -490,20 +490,37 @@ function localAnswer(saved, question) {
   }
   return "";
 }
-function quotaUntil() {
-  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", hourCycle: "h23", hour: "2-digit" }).format(new Date()));
-  let add = (10 - hour + 24) % 24;
-  if (add === 0) add = 24;
-  return Date.now() + add * 60 * 60 * 1000;
+// إيقاف مؤقت للنموذج لما Groq يرفض: ثواني لو عليه ضغط لحظي، وأطول لو الحد اليومي خلص فعلًا.
+// المفتاح جديد عشان أي جهاز اتقفل بالغلط بالمفتاح القديم (jadwali-ai-off) يتفك لوحده.
+const AI_PAUSE_KEY = "jadwali-ai-pause";
+try { localStorage.removeItem("jadwali-ai-off"); } catch { /* private mode */ }
+function aiPause() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AI_PAUSE_KEY) || "null");
+    return saved && Number(saved.until) > Date.now() ? saved : null;
+  } catch {
+    return null;
+  }
 }
-function quotaBlocked() {
-  return Number(localStorage.getItem("jadwali-ai-off") || 0) > Date.now();
+function pauseAI(kind, seconds) {
+  const limit = kind === "quota" ? 6 * 3600 : 120;
+  const wait = Math.min(limit, Math.max(5, Number(seconds) || (kind === "quota" ? 1800 : 20)));
+  try { localStorage.setItem(AI_PAUSE_KEY, JSON.stringify({ kind, until: Date.now() + wait * 1000 })); } catch { /* private mode */ }
 }
-function blockQuota() {
-  try { localStorage.setItem("jadwali-ai-off", String(quotaUntil())); } catch { /* private mode */ }
+function waitLabel(until) {
+  const seconds = Math.max(1, Math.ceil((until - Date.now()) / 1000));
+  if (seconds < 60) return `${seconds} ثانية`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return minutes === 1 ? "دقيقة" : minutes === 2 ? "دقيقتين" : `${minutes} دقيقة`;
+  const hours = Math.ceil(minutes / 60);
+  return hours === 1 ? "ساعة" : hours === 2 ? "ساعتين" : `${hours} ساعات`;
 }
-function savedReply(saved, text) {
-  return localAnswer(saved, text) || "الحد اليومي للنموذج خلّص. اسألني عن محاضرتك أو امتحانك أو بكرة، وأرد من جدولك فورًا.";
+function pausedReply(saved, text, pause) {
+  const known = localAnswer(saved, text);
+  if (known) return known;
+  return pause.kind === "quota"
+    ? `جدولاوي خلّص حد الأسئلة الحرة المتاح للتطبيق كله دلوقتي. جرّب بعد ${waitLabel(pause.until)}، وأسئلة الجدول (محاضرتك، بكرة، الامتحانات) شغّالة عادي.`
+    : `جدولاوي عليه ضغط دلوقتي. جرّب تاني بعد ${waitLabel(pause.until)}.`;
 }
 // <chat-ui-b>
 function chatReduced() {
@@ -633,13 +650,12 @@ async function askAssistant(question) {
       reply = known;
     } else if (asksLeft() <= 0) {
       reply = `خلّصت أسئلتك (${ASK_LIMIT}) مع جدولاوي النهارده. نكمل بكرة، وأسئلة الجدول لسه مفتوحة.`;
-    } else if (quotaBlocked()) {
-      reply = savedReply(saved, text);
+    } else if (aiPause()) {
+      reply = pausedReply(saved, text, aiPause());
     } else {
-      spendAsk();
       const config = window.JADWALI_SUPABASE;
       chatAbort = new AbortController();
-      const timer = setTimeout(() => chatAbort.abort(), 25000);
+      const timer = setTimeout(() => chatAbort.abort(), 30000);
       let response;
       try {
         response = await fetch(`${config.url}/functions/v1/${window.JADWALI_ASSISTANT_FN || "jadwali-assistant"}`, {
@@ -652,18 +668,23 @@ async function askAssistant(question) {
         clearTimeout(timer);
       }
       const out = await response.json().catch(() => ({}));
-      const detail = `${out.error || ""} ${out.detail || ""}`;
       if (!response.ok || !out.reply) {
-        if (response.status === 429 || /quota|rate limit|exhausted/i.test(detail)) blockQuota();
-        throw new Error(/quota|rate limit|exhausted/i.test(detail) ? "quota" : "failed");
+        // السيرفر بيفرّق بين «ضغط لحظي» (busy) و«الحد اليومي خلص» (quota). أي 429 من غير تصنيف بنعتبره ضغط لحظي.
+        const kind = out.error === "quota" ? "quota" : out.error === "busy" || response.status === 429 ? "busy" : "";
+        if (kind) pauseAI(kind, out.retry);
+        throw new Error(kind || "failed");
       }
+      // السؤال بيتحسب من رصيد الطالب بس لما النموذج يرد فعلًا
+      spendAsk();
       reply = String(out.reply).slice(0, 1200);
       applyRemember(out.remember);
       setQuiz(out.mode === "quiz");
     }
   } catch (error) {
     if (run !== chatRun) return;
-    reply = aiFirst ? AI_DOWN : error?.message === "quota" ? savedReply(saved, text) : (localAnswer(saved, text) || "مش قادر أوصل للنموذج دلوقتي. اسألني عن محاضرتك أو امتحانك أو بكرة.");
+    const pause = aiPause();
+    if ((error?.message === "quota" || error?.message === "busy") && pause) reply = pausedReply(saved, text, pause);
+    else reply = aiFirst ? AI_DOWN : (localAnswer(saved, text) || "مش قادر أوصل للنموذج دلوقتي. اسألني عن محاضرتك أو امتحانك أو بكرة.");
   }
   if (run !== chatRun) return;
   const wait = 520 - (Date.now() - started);
